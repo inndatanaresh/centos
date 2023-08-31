@@ -1,0 +1,21 @@
+---
+- name: Install Nginx on CentOS
+  hosts: 172.16.0.226
+  become: yes  # This allows the playbook to run with sudo privileges
+
+  tasks:
+    - name: Install EPEL repository
+      yum:
+        name: epel-release
+        state: present
+
+    - name: Install Nginx
+      yum:
+        name: nginx
+        state: present
+
+    - name: Start Nginx service
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes  # Automatically start Nginx on system boot
