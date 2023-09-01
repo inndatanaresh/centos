@@ -1,45 +1,53 @@
 ---
-- name: setup Mysql with medium_db db and remote login
+- name: Install MySQL Server and Client
+  hosts: 10.10.5.82   # Replace with the hostname or IP address of your target server
   become: yes
-  hosts: 10.10.5.82
   tasks:
-    - name: Installing Mysql  and dependencies
-      package:
-        name: my_sql
-        state: present
+    - name: Update apt cache
+      apt:
         update_cache: yes
-    - loop:
-        - mysql-server
-        - mysql-client
-        - python3-mysqldb
-        - libmysqlclient-dev
-    - become: yes
-    - name: start and enable mysql service
+      when: ansible_os_family == "Debian"
+
+    - name: Install MySQL Server
+      apt:
+        name: mysql-server
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable MySQL service
       service:
         name: mysql
         state: started
         enabled: yes
-    - name: creating mysql user (medium_post)
-      mysql_user:
-        name: root
-        password: "12345"
-        priv: "*.*:ALL"
-        host: "%"
+      when: ansible_os_family == "Debian"
+
+    - name: Install MySQL Client
+      apt:
+        name: mysql-client
         state: present
-    - name: creating medium_db
-      mysql_db:
-        name: testdb
-        state: present
-    - name: Enable remote login to mysql
-      lineinfile:
-        path: /etc/mysql/mysql.conf.d/mysqld.cnf
-        regexp: ^bind-address
-        line: bind-address = 0.0.0.0
-        backup: yes
-      notify:
-        - Restart mysql
-  handlers:
-    - name: Restart mysql
-      service:
-        name: mysql
-        state: restarted
+      when: ansible_os_family == "Debian"
+
+    - name: Check if MySQL Server is running
+      wait_for:
+        host: 127.0.0.1
+        port: 3306
+        timeout: 60
+      ignore_errors: yes
+      register: mysql_running
+      until: mysql_running is success
+
+    - name: Set MySQL root password
+      debconf:
+        name: mysql-server
+        question: "mysql-server/root_password"
+        value: "12345"   # Replace with your desired root password
+        vtype: password
+      when: ansible_os_family == "Debian"
+
+    - name: Set MySQL root password (again for confirmation)
+      debconf:
+        name: mysql-server
+        question: "mysql-server/root_password_again"
+        value: "12345"   # Replace with your desired root password
+        vtype: password
+      when: ansible_os_family == "Debian"
