@@ -1,53 +1,51 @@
 ---
-- name: Install MySQL Server and Client
-  hosts: 10.10.5.82   # Replace with the hostname or IP address of your target server
+- name: Install Node Exporter
+  hosts: 10.10.5.82
   become: yes
+
   tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: yes
-      when: ansible_os_family == "Debian"
+    - name: Download Node Exporter
+      get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.darwin-amd64.tar.gz
+        dest: /tmp/node_exporter-latest-linux-amd64.tar.gz
 
-    - name: Install MySQL Server
-      apt:
-        name: mysql-server
-        state: present
-      when: ansible_os_family == "Debian"
+    - name: Extract Node Exporter
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter-latest-linux-amd64.tar.gz
+        dest: /opt
+        remote_src: yes
 
-    - name: Start and enable MySQL service
-      service:
-        name: mysql
-        state: started
+    - name: Create a symbolic link
+      file:
+        src: /opt/node_exporter-{{ node_exporter_version }}-linux-amd64
+        dest: /opt/node_exporter
+        state: link
+
+    - name: Create Node Exporter user
+      user:
+        name: node_exporter
+        comment: Node Exporter User
+        system: yes
+        shell: /bin/false
+
+    - name: Set permissions
+      file:
+        path: /opt/node_exporter
+        owner: node_exporter
+        group: node_exporter
+        recurse: yes
+
+    - name: Configure systemd service
+      systemd:
+        name: node_exporter
         enabled: yes
-      when: ansible_os_family == "Debian"
+        daemon_reload: yes
+        state: started
+      notify:
+        - Reload Prometheus
 
-    - name: Install MySQL Client
-      apt:
-        name: mysql-client
-        state: present
-      when: ansible_os_family == "Debian"
-
-    - name: Check if MySQL Server is running
-      wait_for:
-        host: 127.0.0.1
-        port: 3306
-        timeout: 60
-      ignore_errors: yes
-      register: mysql_running
-      until: mysql_running is success
-
-    - name: Set MySQL root password
-      debconf:
-        name: mysql-server
-        question: "mysql-server/root_password"
-        value: "12345"   # Replace with your desired root password
-        vtype: password
-      when: ansible_os_family == "Debian"
-
-    - name: Set MySQL root password (again for confirmation)
-      debconf:
-        name: mysql-server
-        question: "mysql-server/root_password_again"
-        value: "12345"   # Replace with your desired root password
-        vtype: password
-      when: ansible_os_family == "Debian"
+handlers:
+  - name: Reload Prometheus
+    systemd:
+      name: prometheus
+      state: restarted
