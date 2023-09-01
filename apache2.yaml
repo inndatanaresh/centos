@@ -1,44 +1,16 @@
 ---
-- name: Install Node Exporter
+- name: Install Apache2
   hosts: 10.10.5.82
-  become: yes
-- tasks:
-    - name: Download Node Exporter
-      get_url:
-        url: https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.darwin-amd64.tar.gz
-        dest: /tmp/node_exporter-latest-linux-amd64.tar.gz
-    - name: Extract Node Exporter
-      ansible.builtin.unarchive:
-        src: /tmp/node_exporter-latest-linux-amd64.tar.gz
-        dest: /opt
-        remote_src: yes
-    - name: Create a symbolic link
-      file:
-        src: /opt/node_exporter-1.6.1-linux-amd64
-        dest: /opt/node_exporter
-        state: link
-    - name: Create Node Exporter user
-      user:
-        name: node_exporter
-        comment: Node Exporter User
-        system: yes
-        shell: /bin/false
-    - name: Set permissions
-      file:
-        path: /opt/node_exporter
-        owner: node_exporter
-        group: node_exporter
-        recurse: yes
-    - name: Configure systemd service
-      systemd:
-        name: node_exporter
-        enabled: yes
-        daemon_reload: yes
-        state: started
-      notify:
-    - Reload Prometheus
-    - handlers: null
-    - name: Reload Prometheus
-    - systemd: null
-      name: prometheus
-      state: restarted
+  become: true  # This allows the playbook to run with sudo privileges
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      become: true
+
+    - name: Install Apache2
+      apt:
+        name: apache2
+        state: present
+      become: true
