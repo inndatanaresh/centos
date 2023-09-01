@@ -36,7 +36,7 @@
         daemon_reload: yes
         state: started
       notify:
-        - Reload Prometheus
+    - Reload Prometheus
     - handlers: null
     - name: Reload Prometheus
     - systemd: null
